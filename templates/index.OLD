@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Climbing Wall Timer Control</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      backface-visibility: hidden;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont,'Segoe UI','Roboto',sans-serif;
+      background: linear-gradient(135deg,#667eea 0%,#764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+      color: #333;
+    }
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      background: rgba(255,255,255,0.98);
+      border-radius: 16px;
+      padding: 30px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    }
+    h1 {
+      text-align: center;
+      color: #2d3748;
+      margin-bottom: 30px;
+      font-size: 2.8em;
+      font-weight: 600;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h2 {
+      color: #2d3748;
+      margin-bottom: 20px;
+      font-size: 1.6em;
+      font-weight: 500;
+    }
+    .status-bar {
+      background: linear-gradient(135deg,#f7fafc 0%,#edf2f7 100%);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 30px;
+      border-left: 5px solid #4299e1;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 30px;
+      align-items: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    .status-item { display: flex; align-items: center; gap:8px; font-weight:500 }
+    .status-value { color:#4299e1; font-weight:600 }
+    .lanes-container {
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(400px,1fr));
+      gap:25px;
+      margin-bottom:40px;
+    }
+    .lane-card {
+      background:#fff;
+      border-radius:16px;
+      padding:25px;
+      padding-bottom:28px;
+      box-shadow:0 8px 32px rgba(0,0,0,0.1);
+      border:1px solid #e2e8f0;
+      transition:transform 0.3s cubic-bezier(0.4,0,0.2,1),
+                 box-shadow 0.3s cubic-bezier(0.4,0,0.2,1);
+      will-change:transform,box-shadow;
+      position:relative;
+      overflow:hidden;
+    }
+    .lane-card::before {
+      content:'';
+      position:absolute;
+      top:0; left:0; right:0; height:4px;
+      background:linear-gradient(90deg,#4299e1,#9f7aea);
+      pointer-events:none;
+    }
+    .lane-card:hover {
+      transform:translateY(-4px);
+      box-shadow:0 12px 40px rgba(0,0,0,0.15);
+    }
+    .lane-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px }
+    .lane-title { font-size:1.5em; font-weight:700; color:#2d3748 }
+    .lane-status {
+      padding:8px 16px; border-radius:20px;
+      font-size:.9em; font-weight:600;
+      text-transform:uppercase; letter-spacing:.5px;
+    }
+    .status-idle   { background:linear-gradient(135deg,#fed7d7,#feb2b2); color:#c53030 }
+    .status-running{ background:linear-gradient(135deg,#c6f6d5,#9ae6b4); color:#22543d }
+    .status-stopped{ background:linear-gradient(135deg,#bee3f8,#90cdf4); color:#2c5282 }
+    .timer-display {
+      font-family:'Courier New','Monaco',monospace;
+      font-size:3.2em; font-weight:900;
+      text-align:center; padding:30px 20px;
+      background:linear-gradient(135deg,#f7fafc,#edf2f7);
+      border-radius:12px; margin-bottom:25px;
+      color:#2d3748; letter-spacing:3px;
+      border:2px solid #e2e8f0;
+      display:flex; align-items:center; justify-content:center;
+      min-height:120px; position:relative;
+    }
+    .timer-running {
+      color:#e53e3e;
+      background:linear-gradient(135deg,#fed7d7,#fbb6ce);
+      border-color:#e53e3e;
+      animation:pulse 2s infinite;
+    }
+    .timer-stopped {
+      color:#38a169;
+      background:linear-gradient(135deg,#c6f6d5,#9ae6b4);
+      border-color:#38a169;
+    }
+    @keyframes pulse {
+      0%,100%{opacity:1}50%{opacity:.7}
+    }
+    .controls {
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+      gap:12px;
+    }
+    .btn {
+      padding:16px 20px; border:none; border-radius:10px;
+      font-size:.95em; font-weight:600; cursor:pointer;
+      transition:transform .2s cubic-bezier(0.4,0,0.2,1),
+                 box-shadow .2s cubic-bezier(0.4,0,0.2,1);
+      text-transform:uppercase; letter-spacing:.5px;
+      position:relative; overflow:hidden; display:flex;
+      align-items:center; justify-content:center; gap:8px;
+      min-height:50px; will-change:transform,box-shadow;
+    }
+    .btn::before {
+      content:'';
+      position:absolute; top:0; left:-100%;
+      width:100%; height:100%;
+      background:linear-gradient(90deg,transparent,rgba(255,255,255,0.3),transparent);
+      transition:left .5s; pointer-events:none;
+    }
+    .btn.loading::after {
+      content:'';
+      position:absolute; top:0; left:-100%;
+      width:100%; height:100%;
+      background:linear-gradient(90deg,transparent,rgba(255,255,255,0.4),transparent);
+      animation:loading 1.5s infinite; pointer-events:none;
+    }
+    @keyframes loading {0%{left:-100%}100%{left:100%}}
+    .btn:hover::before { left:100% }
+    .btn:hover { transform:translateY(-2px); box-shadow:0 8px 25px rgba(0,0,0,0.2) }
+    .btn:active{transform:translateY(0)}
+    .btn:disabled {
+      opacity:.5; cursor:not-allowed; transform:none;
+      pointer-events:none;
+    }
+    .btn-start  { background:linear-gradient(135deg,#48bb78,#38a169); color:#fff;
+                  box-shadow:0 4px 15px rgba(72,187,120,0.3) }
+    .btn-start:hover:not(:disabled) {
+      background:linear-gradient(135deg,#38a169,#2f855a);
+      box-shadow:0 8px 25px rgba(72,187,120,0.4)
+    }
+    .btn-stop   { background:linear-gradient(135deg,#ed8936,#dd6b20); color:#fff;
+                  box-shadow:0 4px 15px rgba(237,137,54,0.3) }
+    .btn-stop:hover:not(:disabled) {
+      background:linear-gradient(135deg,#dd6b20,#c05621);
+      box-shadow:0 8px 25px rgba(237,137,54,0.4)
+    }
+    .btn-reset  { background:linear-gradient(135deg,#718096,#4a5568); color:#fff;
+                  box-shadow:0 4px 15px rgba(113,128,150,0.3) }
+    .btn-reset:hover:not(:disabled) {
+      background:linear-gradient(135deg,#4a5568,#2d3748);
+      box-shadow:0 8px 25px rgba(113,128,150,0.4)
+    }
+    .btn-sound  { background:linear-gradient(135deg,#9f7aea,#805ad5); color:#fff;
+                  box-shadow:0 4px 15px rgba(159,122,234,0.3) }
+    .btn-sound:hover:not(:disabled) {
+      background:linear-gradient(135deg,#805ad5,#6b46c1);
+      box-shadow:0 8px 25px rgba(159,122,234,0.4)
+    }
+    .high-scores {
+      background:#fff; border-radius:16px; padding:30px;
+      box-shadow:0 8px 32px rgba(0,0,0,0.1);
+      margin-bottom:40px; border:1px solid #e2e8f0;
+    }
+    .scores-grid {
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+      gap:25px;
+    }
+    .score-column {
+      text-align:center; padding:20px;
+      background:linear-gradient(135deg,#f7fafc,#edf2f7);
+      border-radius:12px; border:1px solid #e2e8f0;
+    }
+    .score-column h3 {
+      color:#2d3748; margin-bottom:20px;
+      font-size:1.3em; font-weight:600;
+    }
+    .score-list { list-style:none }
+    .score-list li {
+      padding:12px 0; border-bottom:1px solid #e2e8f0;
+      font-family:'Courier New',monospace; font-size:1.1em;
+      transition:background-color .2s;
+    }
+    .score-list li:hover { background-color:rgba(66,153,225,0.05) }
+    .score-list li:first-child {
+      font-weight:bold; color:#d69e2e; font-size:1.2em;
+      background:linear-gradient(135deg,#fef5e7,#fed7aa);
+      border-radius:6px; margin-bottom:10px;
+    }
+    .config-section {
+      background:#fff; border-radius:16px; padding:30px;
+      box-shadow:0 8px 32px rgba(0,0,0,0.1);
+      margin-bottom:30px; border:1px solid #e2e8f0;
+    }
+    .config-grid {
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
+      gap:25px; margin-bottom:30px;
+    }
+    .form-group { display:flex; flex-direction:column }
+    .form-group label {
+      margin-bottom:10px; font-weight:600; color:#2d3748;
+    }
+    .form-group input,
+    .form-group select {
+      padding:14px 16px; border:2px solid #e2e8f0;
+      border-radius:10px; font-size:1em;
+      transition:border-color .2s,transform .2s;
+      background:#fff;
+    }
+    .form-group input:focus,
+    .form-group select:focus {
+      outline:none; border-color:#4299e1;
+      box-shadow:0 0 0 3px rgba(66,153,225,0.1);
+      transform:translateY(-1px);
+    }
+    .config-buttons { display:flex; gap:15px; flex-wrap:wrap }
+    .refresh-indicator {
+      position:fixed; top:30px; right:30px;
+      background:linear-gradient(135deg,#48bb78,#38a169);
+      color:#fff; padding:12px 20px; border-radius:25px;
+      font-size:.9em; font-weight:600; opacity:0;
+      transition:opacity .3s,transform .3s;
+      z-index:1000; box-shadow:0 4px 15px rgba(72,187,120,0.3);
+    }
+    .refresh-indicator.active {
+      opacity:1; transform:scale(1.05);
+    }
+    .keyboard-help {
+      position:fixed; bottom:30px; left:30px;
+      background:rgba(45,55,72,0.95); color:#fff;
+      padding:20px; border-radius:12px; font-size:.9em;
+      z-index:1000; max-width:350px;
+      box-shadow:0 8px 32px rgba(0,0,0,0.3);
+      backdrop-filter:blur(10px);
+    }
+    .keyboard-help h4 { margin-bottom:15px; color:#48bb78; font-size:1.1em }
+    .keyboard-help ul { list-style:none }
+    .keyboard-help li { margin-bottom:8px; display:flex; align-items:center }
+    .keyboard-help .key {
+      background:#4a5568; padding:4px 8px; border-radius:4px;
+      font-weight:bold; margin:0 4px; font-family:monospace;
+      min-width:20px; text-align:center;
+    }
+    .notification {
+      position:fixed; top:100px; right:30px;
+      padding:16px 24px; border-radius:10px;
+      color:#fff; font-weight:600; z-index:1001;
+      transform:translateX(400px);
+      transition:transform .3s cubic-bezier(0.4,0,0.2,1);
+      box-shadow:0 8px 32px rgba(0,0,0,0.2);
+      max-width:300px;
+    }
+    .notification.show { transform:translateX(0) }
+    .notification.success { background:linear-gradient(135deg,#48bb78,#38a169) }
+    .notification.error   { background:linear-gradient(135deg,#e53e3e,#c53030) }
+    .connection-status {
+      position:fixed; top:30px; left:30px;
+      padding:8px 16px; border-radius:20px;
+      font-size:.85em; font-weight:600; z-index:1000;
+      transition:all .3s ease;
+    }
+    .connection-status.connected {
+      background:linear-gradient(135deg,#c6f6d5,#9ae6b4); color:#22543d
+    }
+    .connection-status.disconnected {
+      background:linear-gradient(135deg,#fed7d7,#feb2b2);
+      color:#c53030
+    }
+
+    /* Desktop tweaks */
+    @media (min-width:1024px) {
+      .lanes-container { grid-template-columns:repeat(3,1fr) }
+      .btn { padding:18px 24px; font-size:1em }
+      .controls { grid-template-columns:repeat(4,1fr) }
+    }
+
+    /* Mobile fallback */
+    @media (max-width:768px) {
+      body { padding:10px }
+      .container { padding:20px; border-radius:12px }
+      h1 { font-size:2.2em; margin-bottom:20px }
+      .lanes-container { grid-template-columns:1fr; gap:20px }
+      .timer-display { font-size:2.5em; padding:25px 15px; letter-spacing:2px }
+      .controls { grid-template-columns:repeat(2,1fr); gap:10px }
+      .btn { padding:14px 16px; font-size:.9em }
+      .config-grid { grid-template-columns:1fr; gap:20px }
+      .keyboard-help { display:none }
+      .connection-status,.refresh-indicator {
+        position:relative; top:auto; left:auto; right:auto;
+        margin-bottom:10px
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="connection-status connected" id="connectionStatus">🟢 Connected</div>
+  <div class="container">
+    <h1>🧗‍♀️ Climbing Wall Timer Control</h1>
+    <div class="status-bar">
+      <div class="status-item"><strong>System Status:</strong> <span class="status-value" id="systemStatus">Connected</span></div>
+      <div class="status-item"><strong>Last Update:</strong> <span class="status-value" id="lastUpdate">--</span></div>
+      <div class="status-item"><strong>Refresh Rate:</strong> <span class="status-value" id="autoRefreshStatus">--</span></div>
+      <div class="status-item"><strong>Active Timers:</strong> <span class="status-value" id="activeTimers">0</span></div>
+    </div>
+    <div class="lanes-container" id="lanesContainer"></div>
+    <div class="high-scores">
+      <h2>🏆 High Scores</h2>
+      <div class="scores-grid" id="highScores"></div>
+    </div>
+    <div class="config-section">
+      <h2>⚙️ Configuration</h2>
+      <div class="config-grid">
+        <div class="form-group"><label for="maxTime">Max Time (minutes):</label><input type="number" id="maxTime" min="1" max="120" value="59"></div>
+        <div class="form-group"><label for="refreshRate">Refresh Rate (seconds):</label><input type="number" id="refreshRate" step="0.01" min="0.01" max="2" value="0.1"></div>
+        <div class="form-group"><label for="scrollSpeed">Scroll Speed (pixels/frame):</label><input type="number" id="scrollSpeed" min="1" max="10" value="3"></div>
+        <div class="form-group"><label for="soundEnabled">Sound Enabled:</label><select id="soundEnabled"><option value="true">Yes</option><option value="false">No</option></select></div>
+        <div class="form-group"><label for="fullscreen">Display Fullscreen:</label><select id="fullscreen"><option value="true">Yes</option><option value="false">No</option></select></div>
+        <div class="form-group"><label for="lanes">Number of Lanes:</label><input type="number" id="lanes" min="1" max="6" value="3"></div>
+      </div>
+      <div class="config-buttons">
+        <button class="btn btn-start" onclick="saveConfig()">💾 Save Configuration</button>
+        <button class="btn btn-sound" onclick="exportData()">📊 Export Data</button>
+        <button class="btn btn-reset" onclick="resetAllLanes()">🔄 Reset All Lanes</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="refresh-indicator" id="refreshIndicator">🔄 Updating...</div>
+  <div class="keyboard-help">
+    <h4>⌨️ Keyboard Shortcuts</h4>
+    <ul>
+      <li>Lane 1: <span class="key">Q</span>start <span class="key">W</span>stop <span class="key">E</span>reset</li>
+      <li>Lane 2: <span class="key">A</span>start <span class="key">S</span>stop <span class="key">D</span>reset</li>
+      <li>Lane 3: <span class="key">Z</span>start <span class="key">X</span>stop <span class="key">C</span>reset</li>
+      <li>Global: <span class="key">Space</span>refresh <span class="key">Esc</span>toggle help</li>
+    </ul>
+  </div>
+  <div class="notification" id="notification"></div>
+
+  <script>
+    // Application state
+    let currentState = null;
+    let updateInterval = null;
+    let isConnected = true;
+    let consecutiveErrors = 0;
+    let updateCounter = 0;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadConfig();
+      startUpdating();
+      updateState();
+      setupEventListeners();
+      setupKeyboardShortcuts();
+    });
+
+    function setupEventListeners() {
+      window.addEventListener('online', handleOnline);
+      window.addEventListener('offline', handleOffline);
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      setupAutoSave();
+      setupTouchEvents();
+    }
+
+    function showNotification(msg, type='success', dur=3000) {
+      const n = document.getElementById('notification');
+      n.textContent = msg;
+      n.className = `notification ${type} show`;
+      setTimeout(() => n.classList.remove('show'), dur);
+    }
+
+    function showRefreshIndicator() {
+      const ind = document.getElementById('refreshIndicator');
+      ind.classList.add('active');
+      setTimeout(() => ind.classList.remove('active'), 600);
+    }
+
+    function updateConnectionStatus(connected) {
+      const el = document.getElementById('connectionStatus');
+      el.textContent = connected ? '🟢 Connected' : '🔴 Disconnected';
+      el.className = `connection-status ${connected ? 'connected':'disconnected'}`;
+    }
+
+    function handleOnline() {
+      isConnected = true; consecutiveErrors = 0;
+      updateConnectionStatus(true);
+      showNotification('Connection restored','success');
+      startUpdating();
+    }
+    function handleOffline() {
+      isConnected = false;
+      updateConnectionStatus(false);
+      showNotification('Connection lost - working offline','error',5000);
+    }
+
+    async function updateState() {
+      if(!isConnected) return;
+      try {
+        showRefreshIndicator();
+        updateCounter++;
+        const ctl = new AbortController();
+        const tid = setTimeout(()=>ctl.abort(),8000);
+        const resp = await fetch('/api/state',{signal:ctl.signal,'headers':{'Cache-Control':'no-cache'}});
+        clearTimeout(tid);
+        if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        if(data.error) throw new Error(data.error);
+        consecutiveErrors=0; currentState=data;
+        updateDisplay();
+        document.getElementById('systemStatus').textContent='Connected';
+        document.getElementById('lastUpdate').textContent=new Date().toLocaleTimeString();
+        const active = data.lanes.filter(l=>l.running).length;
+        document.getElementById('activeTimers').textContent=active;
+      } catch(err) {
+        consecutiveErrors++;
+        if(err.name==='AbortError') {
+          document.getElementById('systemStatus').textContent='Timeout';
+          showNotification('Request timeout - check connection','error');
+        } else {
+          document.getElementById('systemStatus').textContent='Connection Error';
+          showNotification('Connection error - retrying...','error');
+        }
+        if(consecutiveErrors>=3) {
+          clearInterval(updateInterval);
+          updateInterval = setInterval(updateState,5000);
+          showNotification('Reduced refresh rate','error',5000);
+        }
+        if(consecutiveErrors>=10) {
+          clearInterval(updateInterval);
+          showNotification('Connection lost - please refresh','error',10000);
+        }
+      }
+    }
+
+    function updateDisplay() {
+      if(!currentState||!currentState.lanes) return;
+      updateLanes(); updateHighScores();
+    }
+
+    function updateLanes(){
+      const ctr = document.getElementById('lanesContainer');
+      ctr.innerHTML='';
+      currentState.lanes.forEach((lane,i)=>{
+        const div=document.createElement('div');
+        div.className='lane-card';
+        div.dataset.laneId=lane.id;
+        let status,cls,tcls;
+        if(lane.running){status='Running';cls='status-running';tcls='timer-running'}
+        else if(lane.has_been_stopped){status='Stopped';cls='status-stopped';tcls='timer-stopped'}
+        else {status='Ready';cls='status-idle';tcls=''}
+        div.innerHTML=`
+          <div class="lane-header">
+            <div class="lane-title">Lane ${lane.id+1}</div>
+            <div class="lane-status ${cls}">${status}</div>
+          </div>
+          <div class="timer-display ${tcls}" aria-label="Timer ${lane.formatted_time}">
+            ${lane.formatted_time}
+          </div>
+          <div class="controls">
+            <button class="btn btn-start" onclick="controlLane(${lane.id},'start')">▶️ Start</button>
+            <button class="btn btn-stop" onclick="controlLane(${lane.id},'stop')" ${!lane.running?'disabled':''}>⏹️ Stop</button>
+            <button class="btn btn-reset" onclick="controlLane(${lane.id},'reset')">🔄 Reset</button>
+            <button class="btn btn-sound" onclick="playSound(${lane.id})">🔊 Sound</button>
+          </div>`;
+        ctr.appendChild(div);
+      });
+    }
+
+    function updateHighScores(){
+      const ctr=document.getElementById('highScores');ctr.innerHTML='';
+      if(!currentState.high_scores){ctr.textContent='No high scores';return;}
+      Object.entries(currentState.high_scores).forEach(([id,scores])=>{
+        const col=document.createElement('div');col.className='score-column';
+        col.innerHTML=`<h3>Lane ${parseInt(id)+1}</h3>
+          <ul class="score-list">
+            ${scores.length>0
+              ?scores.slice(0,5).map((s,i)=>`<li>${i+1}. ${s.toFixed(2)}s</li>`).join('')
+              :'<li>No scores yet</li>'}
+          </ul>`;
+        ctr.appendChild(col);
+      });
+    }
+
+    async function controlLane(id,action){
+      if(!currentState||!currentState.lanes[id]){showNotification('Invalid lane','error');return;}
+      const btn=event.target;btn.classList.add('loading');btn.disabled=true;
+      const lane=currentState.lanes[id];
+      if(action==='start'){
+        if(!lane.running&&!lane.has_been_stopped){lane.running=true;lane.has_been_stopped=false;}
+        else{lane.running=false;lane.has_been_stopped=false;lane.formatted_time="00:00.00";}
+      } else if(action==='stop'&&lane.running){lane.running=false;lane.has_been_stopped=true;}
+      else if(action==='reset'){lane.running=false;lane.has_been_stopped=false;lane.formatted_time="00:00.00";}
+      updateDisplay();
+      try{
+        const ctl=new AbortController(),tid=setTimeout(()=>ctl.abort(),5000);
+        const res=await fetch(`/api/control/${id}/${action}`,{method:'POST',signal:ctl.signal});
+        clearTimeout(tid);
+        const r=await res.json();if(r.error)throw new Error(r.error);
+        showNotification(`Lane ${id+1} ${action} ok`,'success',1500);
+        setTimeout(updateState,200);
+      }catch(e){
+        showNotification(`Fail: ${e.message}`,'error');
+        setTimeout(updateState,100);
+      }finally{
+        setTimeout(()=>{
+          document.querySelectorAll('.btn').forEach(b=>{b.classList.remove('loading');b.disabled=false;});
+          updateDisplay();
+        },500);
+      }
+    }
+
+    async function playSound(id){
+      const btn=event.target;btn.textContent='🎵';btn.disabled=true;
+      try{
+        const ctl=new AbortController(),tid=setTimeout(()=>ctl.abort(),5000);
+        const res=await fetch(`/api/sound/${id}`,{method:'POST',signal:ctl.signal});
+        clearTimeout(tid);
+        const r=await res.json();if(r.error)throw new Error(r.error);
+        if(r.success)showNotification(`Sound lane ${id+1}`,'success',1500);
+        else showNotification('Sound disabled','error');
+      }catch(e){
+        showNotification(`Sound error: ${e.message}`,'error');
+      }finally{
+        setTimeout(()=>{btn.textContent='🔊 Sound';btn.disabled=false;},1000);
+      }
+    }
+
+    async function loadConfig(){
+      try{
+        const resp=await fetch('/api/config');if(!resp.ok)throw new Error(resp.status);
+        const cfg=await resp.json();if(cfg.error)throw new Error(cfg.error);
+        document.getElementById('maxTime').value=cfg.max_time_minutes||59;
+        document.getElementById('refreshRate').value=cfg.refresh_rate||0.1;
+        document.getElementById('scrollSpeed').value=cfg.scroll_speed||3;
+        document.getElementById('soundEnabled').value=cfg.sound_enabled?'true':'false';
+        document.getElementById('fullscreen').value=cfg.fullscreen?'true':'false';
+        document.getElementById('lanes').value=cfg.lanes||3;
+      }catch(e){
+        showNotification('Load config failed','error');
+      }
+    }
+
+    async function saveConfig(){
+      const btn=document.querySelector('.btn-start[onclick="saveConfig()"]');
+      btn.textContent='💾...';btn.disabled=true;
+      try{
+        const cfg={
+          max_time_minutes:parseInt(document.getElementById('maxTime').value),
+          refresh_rate:parseFloat(document.getElementById('refreshRate').value),
+          scroll_speed:parseInt(document.getElementById('scrollSpeed').value),
+          sound_enabled:document.getElementById('soundEnabled').value==='true',
+          fullscreen:document.getElementById('fullscreen').value==='true',
+          lanes:parseInt(document.getElementById('lanes').value)
+        };
+        if(cfg.refresh_rate<0.01||cfg.refresh_rate>2)throw new Error('Refresh rate 0.01–2');
+        if(cfg.max_time_minutes<1||cfg.max_time_minutes>120)throw new Error('Max time 1–120');
+        if(cfg.lanes<1||cfg.lanes>6)throw new Error('Lanes 1–6');
+        const res=await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cfg)});
+        const r=await res.json();if(r.error)throw new Error(r.error);
+        showNotification('Config saved','success');
+        consecutiveErrors=0;startUpdating();
+      }catch(e){
+        showNotification(`Save failed: ${e.message}`,'error');
+      }finally{
+        setTimeout(()=>{btn.textContent='💾 Save';btn.disabled=false;},1000);
+      }
+    }
+
+    async function resetAllLanes(){
+      const btn=document.querySelector('.btn-reset[onclick="resetAllLanes()"]');
+      btn.textContent='🔄...';btn.disabled=true;
+      try{
+        await Promise.all(currentState.lanes.map((_,i)=>fetch(`/api/control/${i}/reset`,{method:'POST'})));
+        showNotification('All reset','success');
+        setTimeout(updateState,200);
+      }catch{
+        showNotification('Reset failed','error');
+      }finally{
+        setTimeout(()=>{btn.textContent='🔄 Reset All';btn.disabled=false;},1000);
+      }
+    }
+
+    function exportData(){
+      try{
+        const data={
+          timestamp:new Date().toISOString(),
+          lanes:currentState.lanes,
+          high_scores:currentState.high_scores
+        };
+        const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement('a');
+        a.href=url; a.download=`export-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);a.click();a.remove();
+        URL.revokeObjectURL(url);
+        showNotification('Exported','success');
+      }catch(e){
+        showNotification(`Export failed: ${e}`,'error');
+      }
+    }
+
+    function startUpdating(){
+      if(updateInterval)clearInterval(updateInterval);
+      const rate=Math.max(parseFloat(document.getElementById('refreshRate').value)||0.1,0.1);
+      updateInterval=setInterval(updateState,rate*1000);
+      document.getElementById('autoRefreshStatus').textContent=`${rate}s`;
+    }
+
+    function handleVisibilityChange(){
+      if(document.hidden) clearInterval(updateInterval);
+      else { startUpdating(); updateState(); }
+    }
+
+    function setupKeyboardShortcuts(){
+      document.addEventListener('keydown',e=>{
+        if(['INPUT','SELECT'].includes(e.target.tagName))return;
+        const map={KeyQ:[0,'start'],KeyW:[0,'stop'],KeyE:[0,'reset'],
+                   KeyA:[1,'start'],KeyS:[1,'stop'],KeyD:[1,'reset'],
+                   KeyZ:[2,'start'],KeyX:[2,'stop'],KeyC:[2,'reset']};
+        if(map[e.code]){
+          controlLane(...map[e.code]); e.preventDefault();
+        }
+        if(e.code==='Space'){ updateState();showNotification('Refreshed','success',1000);e.preventDefault(); }
+        if(e.code==='Escape'){
+          const h=document.querySelector('.keyboard-help');
+          h.style.display=h.style.display==='none'?'block':'none';
+        }
+      });
+    }
+
+    function setupAutoSave(){
+      ['maxTime','refreshRate','scrollSpeed','soundEnabled','fullscreen','lanes'].forEach(id=>{
+        const el=document.getElementById(id);
+        if(!el)return;
+        el.addEventListener('change',function(){
+          clearTimeout(this._to); this._to=setTimeout(saveConfig,2000);
+        });
+      });
+    }
+
+    function setupTouchEvents(){
+      document.addEventListener('touchstart',e=>{ if(e.target.classList.contains('btn')) e.target.style.transform='scale(.95)'; });
+      document.addEventListener('touchend',e=>{ if(e.target.classList.contains('btn')) e.target.style.transform=''; });
+      if('vibrate'in navigator)document.addEventListener('click',e=>{ if(e.target.classList.contains('btn'))navigator.vibrate(30); });
+    }
+
+    window.addEventListener('error',e=>showNotification('Error occurred','error',5000));
+    window.addEventListener('unhandledrejection',e=>showNotification('Network error','error',3000));
+  </script>
+</body>
+</html>

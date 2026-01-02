@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Climbing Wall Timer Control</title>
+  <style>
+    :root {
+      --primary: #3b82f6;
+      --primary-dark: #2563eb;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-300: #d1d5db;
+      --gray-500: #6b7280;
+      --gray-700: #374151;
+      --gray-800: #1f2937;
+      --gray-900: #111827;
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+      --radius: 8px;
+      --transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+      background: var(--gray-50);
+      color: var(--gray-900);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    /* Header */
+    .header {
+      background: white;
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--gray-200);
+    }
+
+    .header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--gray-900);
+      margin-bottom: 16px;
+    }
+
+    .status-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 24px;
+      padding-top: 16px;
+      border-top: 1px solid var(--gray-200);
+    }
+
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.875rem;
+    }
+
+    .status-item strong {
+      color: var(--gray-500);
+      font-weight: 500;
+    }
+
+    .status-value {
+      color: var(--gray-900);
+      font-weight: 600;
+    }
+
+    /* Lane Cards */
+    .lanes-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+
+    .lane-card {
+      background: white;
+      border-radius: var(--radius);
+      border: 1px solid var(--gray-200);
+      padding: 24px;
+      box-shadow: var(--shadow-sm);
+      transition: box-shadow var(--transition);
+    }
+
+    .lane-card:hover {
+      box-shadow: var(--shadow);
+    }
+
+    .lane-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .lane-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--gray-900);
+    }
+
+    .lane-status {
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .status-idle {
+      background: var(--gray-100);
+      color: var(--gray-600);
+    }
+
+    .status-running {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .status-stopped {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    /* Timer Display */
+    .timer-display {
+      font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+      font-size: 3rem;
+      font-weight: 700;
+      text-align: center;
+      padding: 32px 16px;
+      background: var(--gray-50);
+      border-radius: var(--radius);
+      margin-bottom: 24px;
+      color: var(--gray-700);
+      letter-spacing: 0.05em;
+      border: 2px solid var(--gray-200);
+      min-height: 120px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color var(--transition), color var(--transition);
+    }
+
+    .timer-display.running {
+      background: #fef3c7;
+      color: #92400e;
+      border-color: #fbbf24;
+    }
+
+    .timer-display.stopped {
+      background: #d1fae5;
+      color: #065f46;
+      border-color: #34d399;
+    }
+
+    /* Control Buttons */
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      gap: 12px;
+    }
+
+    .btn {
+      padding: 12px 16px;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--transition);
+      text-transform: uppercase;
+      letter-spacing: 0.025em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-height: 44px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow);
+    }
+
+    .btn:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-start {
+      background: var(--success);
+      color: white;
+    }
+
+    .btn-start:hover:not(:disabled) {
+      background: #059669;
+    }
+
+    .btn-stop {
+      background: var(--danger);
+      color: white;
+    }
+
+    .btn-stop:hover:not(:disabled) {
+      background: #dc2626;
+    }
+
+    .btn-reset {
+      background: var(--gray-500);
+      color: white;
+    }
+
+    .btn-reset:hover:not(:disabled) {
+      background: var(--gray-600);
+    }
+
+    .btn-sound {
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn-sound:hover:not(:disabled) {
+      background: var(--primary-dark);
+    }
+
+    /* Loading state */
+    .btn.loading::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(255, 255, 255, 0.3);
+      animation: shimmer 1s infinite;
+    }
+
+    @keyframes shimmer {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+
+    /* High Scores Section */
+    .section-card {
+      background: white;
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--gray-200);
+    }
+
+    .section-title {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--gray-900);
+      margin-bottom: 20px;
+    }
+
+    .scores-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+    }
+
+    .score-column {
+      background: var(--gray-50);
+      border-radius: var(--radius);
+      padding: 16px;
+      border: 1px solid var(--gray-200);
+    }
+
+    .score-column h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--gray-700);
+      margin-bottom: 12px;
+    }
+
+    .score-list {
+      list-style: none;
+    }
+
+    .score-list li {
+      padding: 8px 0;
+      font-family: 'SF Mono', monospace;
+      font-size: 0.875rem;
+      color: var(--gray-600);
+      border-bottom: 1px solid var(--gray-200);
+    }
+
+    .score-list li:last-child {
+      border-bottom: none;
+    }
+
+    .score-list li:first-child {
+      color: var(--warning);
+      font-weight: 600;
+    }
+
+    /* Configuration Section */
+    .config-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .form-group label {
+      margin-bottom: 6px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--gray-700);
+    }
+
+    .form-group input,
+    .form-group select {
+      padding: 10px 12px;
+      border: 1px solid var(--gray-300);
+      border-radius: 6px;
+      font-size: 0.875rem;
+      background: white;
+      transition: border-color var(--transition);
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .config-buttons {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    /* Notifications */
+    .notification {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      padding: 12px 20px;
+      border-radius: 6px;
+      color: white;
+      font-weight: 500;
+      font-size: 0.875rem;
+      z-index: 1000;
+      transform: translateX(400px);
+      transition: transform var(--transition);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .notification.show {
+      transform: translateX(0);
+    }
+
+    .notification.success {
+      background: var(--success);
+    }
+
+    .notification.error {
+      background: var(--danger);
+    }
+
+    /* Connection Status */
+    .connection-status {
+      position: fixed;
+      top: 24px;
+      left: 24px;
+      padding: 6px 12px;
+      border-radius: 16px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      z-index: 999;
+      background: white;
+      box-shadow: var(--shadow);
+      transition: all var(--transition);
+    }
+
+    .connection-status.connected {
+      color: var(--success);
+      border: 1px solid var(--success);
+    }
+
+    .connection-status.disconnected {
+      color: var(--danger);
+      border: 1px solid var(--danger);
+    }
+
+    /* Desktop optimizations */
+    @media (min-width: 1024px) {
+      .lanes-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+      
+      .controls {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    /* Mobile optimizations */
+    @media (max-width: 768px) {
+      .container {
+        padding: 16px;
+      }
+      
+      .header h1 {
+        font-size: 1.5rem;
+      }
+      
+      .lanes-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .timer-display {
+        font-size: 2rem;
+        padding: 24px 12px;
+      }
+      
+      .connection-status {
+        position: relative;
+        top: auto;
+        left: auto;
+        margin-bottom: 16px;
+        display: inline-block;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="connection-status connected" id="connectionStatus">● Connected</div>
+  
+  <div class="container">
+    <div class="header">
+      <h1>🧗 Climbing Wall Timer Control</h1>
+      <div class="status-bar">
+        <div class="status-item">
+          <strong>System:</strong>
+          <span class="status-value" id="systemStatus">Connected</span>
+        </div>
+        <div class="status-item">
+          <strong>Last Update:</strong>
+          <span class="status-value" id="lastUpdate">--</span>
+        </div>
+        <div class="status-item">
+          <strong>Active Timers:</strong>
+          <span class="status-value" id="activeTimers">0</span>
+        </div>
+        <div class="status-item">
+          <strong>Update Rate:</strong>
+          <span class="status-value" id="updateRate">1s</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="lanes-grid" id="lanesContainer"></div>
+
+    <div class="section-card">
+      <h2 class="section-title">🏆 High Scores</h2>
+      <div class="scores-grid" id="highScores"></div>
+    </div>
+
+    <div class="section-card">
+      <h2 class="section-title">⚙️ Configuration</h2>
+      <div class="config-grid">
+        <div class="form-group">
+          <label for="updateInterval">Web Update Interval (seconds):</label>
+          <input type="number" id="updateInterval" min="0.5" max="5" step="0.5" value="1">
+        </div>
+        <div class="form-group">
+          <label for="soundEnabled">Sound Enabled:</label>
+          <select id="soundEnabled">
+            <option value="true">Yes</option>
+            <option value="false">No</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="scrollSpeed">Display Scroll Speed:</label>
+          <input type="number" id="scrollSpeed" min="1" max="10" value="3">
+        </div>
+      </div>
+      <div class="config-buttons">
+        <button class="btn btn-start" onclick="saveConfig()">💾 Save Configuration</button>
+        <button class="btn btn-sound" onclick="exportData()">📊 Export Data</button>
+        <button class="btn btn-reset" onclick="resetAllLanes()">🔄 Reset All Lanes</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="notification" id="notification"></div>
+
+  <script>
+    // Application state
+    let currentState = null;
+    let updateInterval = null;
+    let isConnected = true;
+    let webUpdateRate = 1000; // Default 1 second for web interface
+    
+    // Initialization
+    document.addEventListener('DOMContentLoaded', () => {
+      loadInitialConfig();
+      startUpdating();
+      updateState();
+      setupEventListeners();
+    });
+
+    function setupEventListeners() {
+      // Update interval change
+      document.getElementById('updateInterval').addEventListener('change', (e) => {
+        webUpdateRate = parseFloat(e.target.value) * 1000;
+        startUpdating();
+        document.getElementById('updateRate').textContent = `${e.target.value}s`;
+      });
+
+      // Visibility change
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+          clearInterval(updateInterval);
+        } else {
+          startUpdating();
+          updateState();
+        }
+      });
+
+      // Connection events
+      window.addEventListener('online', () => {
+        isConnected = true;
+        updateConnectionStatus(true);
+        startUpdating();
+      });
+      
+      window.addEventListener('offline', () => {
+        isConnected = false;
+        updateConnectionStatus(false);
+      });
+    }
+
+    function showNotification(message, type = 'success', duration = 2000) {
+      const notification = document.getElementById('notification');
+      notification.textContent = message;
+      notification.className = `notification ${type} show`;
+      setTimeout(() => {
+        notification.classList.remove('show');
+      }, duration);
+    }
+
+    function updateConnectionStatus(connected) {
+      const element = document.getElementById('connectionStatus');
+      element.textContent = connected ? '● Connected' : '○ Disconnected';
+      element.className = `connection-status ${connected ? 'connected' : 'disconnected'}`;
+    }
+
+    async function updateState() {
+      if (!isConnected) return;
+      
+      try {
+        const response = await fetch('/api/state', {
+          signal: AbortSignal.timeout(5000)
+        });
+        
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
+        const data = await response.json();
+        if (data.error) throw new Error(data.error);
+        
+        currentState = data;
+        updateDisplay();
+        
+        // Update status
+        document.getElementById('systemStatus').textContent = 'Connected';
+        document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+        const activeCount = data.lanes.filter(l => l.running).length;
+        document.getElementById('activeTimers').textContent = activeCount;
+        
+      } catch (error) {
+        console.error('Update error:', error);
+        document.getElementById('systemStatus').textContent = 'Error';
+        
+        if (error.name === 'AbortError') {
+          showNotification('Connection timeout', 'error');
+        }
+      }
+    }
+
+    function updateDisplay() {
+      if (!currentState || !currentState.lanes) return;
+      updateLanes();
+      updateHighScores();
+    }
+
+    function updateLanes() {
+      const container = document.getElementById('lanesContainer');
+      
+      // Only rebuild if lanes don't exist
+      if (container.children.length === 0) {
+        container.innerHTML = '';
+        currentState.lanes.forEach(lane => {
+          container.appendChild(createLaneCard(lane));
+        });
+      } else {
+        // Update existing lanes
+        currentState.lanes.forEach((lane, index) => {
+          updateLaneCard(container.children[index], lane);
+        });
+      }
+    }
+
+    function createLaneCard(lane) {
+      const div = document.createElement('div');
+      div.className = 'lane-card';
+      div.dataset.laneId = lane.id;
+      
+      const statusInfo = getLaneStatus(lane);
+      
+      div.innerHTML = `
+        <div class="lane-header">
+          <div class="lane-title">Lane ${lane.id + 1}</div>
+          <div class="lane-status ${statusInfo.class}">${statusInfo.text}</div>
+        </div>
+        <div class="timer-display ${statusInfo.timerClass}">
+          ${lane.formatted_time}
+        </div>
+        <div class="controls">
+          <button class="btn btn-start" onclick="controlLane(${lane.id}, 'start')">▶ Start</button>
+          <button class="btn btn-stop" onclick="controlLane(${lane.id}, 'stop')" ${!lane.running ? 'disabled' : ''}>■ Stop</button>
+          <button class="btn btn-reset" onclick="controlLane(${lane.id}, 'reset')">↺ Reset</button>
+          <button class="btn btn-sound" onclick="playSound(${lane.id})">🔊 Sound</button>
+        </div>
+      `;
+      
+      return div;
+    }
+
+    function updateLaneCard(card, lane) {
+      const statusInfo = getLaneStatus(lane);
+      
+      // Update status
+      const statusEl = card.querySelector('.lane-status');
+      statusEl.className = `lane-status ${statusInfo.class}`;
+      statusEl.textContent = statusInfo.text;
+      
+      // Update timer
+      const timerEl = card.querySelector('.timer-display');
+      timerEl.className = `timer-display ${statusInfo.timerClass}`;
+      timerEl.textContent = lane.formatted_time;
+      
+      // Update stop button
+      const stopBtn = card.querySelector('.btn-stop');
+      stopBtn.disabled = !lane.running;
+    }
+
+    function getLaneStatus(lane) {
+      if (lane.running) {
+        return {
+          text: 'Running',
+          class: 'status-running',
+          timerClass: 'running'
+        };
+      } else if (lane.has_been_stopped) {
+        return {
+          text: 'Stopped',
+          class: 'status-stopped',
+          timerClass: 'stopped'
+        };
+      } else {
+        return {
+          text: 'Ready',
+          class: 'status-idle',
+          timerClass: ''
+        };
+      }
+    }
+
+    function updateHighScores() {
+      const container = document.getElementById('highScores');
+      container.innerHTML = '';
+      
+      if (!currentState.high_scores) {
+        container.textContent = 'No high scores yet';
+        return;
+      }
+      
+      Object.entries(currentState.high_scores).forEach(([id, scores]) => {
+        const column = document.createElement('div');
+        column.className = 'score-column';
+        
+        const scoresHtml = scores.length > 0
+          ? scores.slice(0, 5).map((score, index) => 
+              `<li>${index + 1}. ${score.toFixed(2)}s</li>`
+            ).join('')
+          : '<li>No scores yet</li>';
+        
+        column.innerHTML = `
+          <h3>Lane ${parseInt(id) + 1}</h3>
+          <ul class="score-list">${scoresHtml}</ul>
+        `;
+        
+        container.appendChild(column);
+      });
+    }
+
+    async function controlLane(laneId, action) {
+      const button = event.target;
+      button.classList.add('loading');
+      button.disabled = true;
+      
+      try {
+        const response = await fetch(`/api/control/${laneId}/${action}`, {
+          method: 'POST',
+          signal: AbortSignal.timeout(3000)
+        });
+        
+        const result = await response.json();
+        if (result.error) throw new Error(result.error);
+        
+        showNotification(`Lane ${laneId + 1} ${action} successful`);
+        
+        // Update immediately
+        setTimeout(updateState, 100);
+        
+      } catch (error) {
+        showNotification(`Failed: ${error.message}`, 'error');
+      } finally {
+        setTimeout(() => {
+          button.classList.remove('loading');
+          button.disabled = false;
+          updateState();
+        }, 300);
+      }
+    }
+
+    async function playSound(laneId) {
+      const button = event.target;
+      button.disabled = true;
+      
+      try {
+        const response = await fetch(`/api/sound/${laneId}`, {
+          method: 'POST',
+          signal: AbortSignal.timeout(3000)
+        });
+        
+        const result = await response.json();
+        if (result.error) throw new Error(result.error);
+        
+        if (result.success) {
+          showNotification(`Sound played for lane ${laneId + 1}`);
+        } else {
+          showNotification('Sound disabled', 'error');
+        }
+        
+      } catch (error) {
+        showNotification(`Sound error: ${error.message}`, 'error');
+      } finally {
+        setTimeout(() => {
+          button.disabled = false;
+        }, 500);
+      }
+    }
+
+    async function loadInitialConfig() {
+      try {
+        const response = await fetch('/api/config');
+        if (!response.ok) throw new Error('Failed to load config');
+        
+        const config = await response.json();
+        
+        // Set sound enabled
+        document.getElementById('soundEnabled').value = config.sound_enabled ? 'true' : 'false';
+        
+        // Set scroll speed
+        if (config.scroll_speed) {
+          document.getElementById('scrollSpeed').value = config.scroll_speed;
+        }
+        
+      } catch (error) {
+        console.error('Config load error:', error);
+      }
+    }
+
+    async function saveConfig() {
+      const button = event.target;
+      button.textContent = 'Saving...';
+      button.disabled = true;
+      
+      try {
+        const config = {
+          sound_enabled: document.getElementById('soundEnabled').value === 'true',
+          scroll_speed: parseInt(document.getElementById('scrollSpeed').value)
+        };
+        
+        const response = await fetch('/api/config', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(config)
+        });
+        
+        const result = await response.json();
+        if (result.error) throw new Error(result.error);
+        
+        showNotification('Configuration saved');
+        
+      } catch (error) {
+        showNotification(`Save failed: ${error.message}`, 'error');
+      } finally {
+        setTimeout(() => {
+          button.textContent = '💾 Save Configuration';
+          button.disabled = false;
+        }, 500);
+      }
+    }
+
+    async function resetAllLanes() {
+      if (!confirm('Reset all lanes to 00:00.00?')) return;
+      
+      const button = event.target;
+      button.textContent = 'Resetting...';
+      button.disabled = true;
+      
+      try {
+        const promises = currentState.lanes.map(lane =>
+          fetch(`/api/control/${lane.id}/reset`, { method: 'POST' })
+        );
+        
+        await Promise.all(promises);
+        showNotification('All lanes reset');
+        setTimeout(updateState, 100);
+        
+      } catch (error) {
+        showNotification('Reset failed', 'error');
+      } finally {
+        setTimeout(() => {
+          button.textContent = '🔄 Reset All Lanes';
+          button.disabled = false;
+        }, 500);
+      }
+    }
+
+    function exportData() {
+      try {
+        const data = {
+          timestamp: new Date().toISOString(),
+          lanes: currentState.lanes,
+          high_scores: currentState.high_scores
+        };
+        
+        const blob = new Blob([JSON.stringify(data, null, 2)], {
+          type: 'application/json'
+        });
+        
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `timer-export-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        
+        showNotification('Data exported successfully');
+        
+      } catch (error) {
+        showNotification('Export failed', 'error');
+      }
+    }
+
+    function startUpdating() {
+      if (updateInterval) {
+        clearInterval(updateInterval);
+      }
+      updateInterval = setInterval(updateState, webUpdateRate);
+    }
+  </script>
+</body>
+</html>
