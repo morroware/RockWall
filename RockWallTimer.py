@@ -562,33 +562,45 @@ class EnhancedSmoothDisplayManager:
             pygame.display.set_caption("Climbing Wall Timer - Production Hardened")
             
             self.colors = {
+                # Background gradient
                 "bg_top": (12, 15, 24),
                 "bg_bottom": (4, 6, 12),
-                "card": (28, 34, 48),
+
+                # Card colors
+                "card": (24, 28, 40),
+                "card_border": (45, 55, 75),
                 "card_hover": (34, 40, 56),
                 "card_active": (40, 48, 64),
                 "card_glass": (255, 255, 255),
+
+                # Accent colors
                 "accent": (100, 180, 255),
                 "accent_bright": (130, 200, 255),
+                "accent_dim": (60, 120, 200),
+                "gold": (255, 200, 60),
+
+                # Text colors
                 "text_primary": (250, 252, 255),
                 "text_secondary": (200, 210, 225),
-                "text_muted": (140, 155, 175),
-                
-                # State colors
+                "text_muted": (120, 135, 160),
+
+                # State colors - more vibrant
                 "state_ready_clr": (250, 252, 255),
-                "state_running_clr": (255, 90, 90),
+                "state_running_clr": (255, 75, 75),
                 "state_paused_clr": (255, 193, 7),
-                "state_stopped_clr": (0, 240, 130),
-                
-                # Card tints
-                "card_tint_ready": (28, 34, 48),
-                "card_tint_running": (48, 40, 56),
-                "card_tint_paused": (56, 48, 32),
-                "card_tint_stopped": (32, 48, 40),
-                
-                "glow": (120, 190, 255),
+                "state_stopped_clr": (0, 230, 120),
+
+                # Card tints - more subtle
+                "card_tint_ready": (24, 28, 40),
+                "card_tint_running": (45, 32, 42),
+                "card_tint_paused": (50, 42, 28),
+                "card_tint_stopped": (28, 45, 38),
+
+                # Effects
+                "glow": (100, 180, 255),
                 "shadow": (0, 0, 0),
                 "ticker": (160, 220, 255),
+                "timer_bg": (16, 20, 32),
             }
             
             self._build_layout_grid()
@@ -757,29 +769,36 @@ class EnhancedSmoothDisplayManager:
     
     def _create_ticker_surfaces(self):
         """
-        ZERO PER-FRAME ALLOCATIONS: Build all ticker surfaces once.
-        CONSISTENT PIXEL FORMAT: All surfaces created in final display format.
+        Create professional ticker surfaces with gradient and polish.
+        All surfaces cached for zero per-frame allocations.
         """
         W, H = self.config.width, self.config.height
         th = self._ticker_h
-        
+
         self._ticker_rect = pygame.Rect(0, H - th, W, th)
-        
-        # Background band (cached once, in final format)
+
+        # Background with subtle gradient
         bg = pygame.Surface((W, th), pygame.SRCALPHA).convert_alpha()
         for i in range(th):
-            alpha = int(200 * (1 - i / th))
-            pygame.draw.rect(bg, (15, 20, 30, alpha), (0, i, W, 1))
+            t = i / th
+            # Gradient from darker at top to slightly lighter
+            r = int(8 + 10 * t)
+            g = int(10 + 12 * t)
+            b = int(16 + 14 * t)
+            alpha = int(240 - 40 * t)
+            pygame.draw.line(bg, (r, g, b, alpha), (0, i), (W, i))
         self._ticker_bg = bg
-        
-        # Fade edges (cached once, in final format)
-        fade_w = 60
+
+        # Enhanced fade edges with longer gradient
+        fade_w = 100
         left = pygame.Surface((fade_w, th), pygame.SRCALPHA).convert_alpha()
         right = pygame.Surface((fade_w, th), pygame.SRCALPHA).convert_alpha()
         for x in range(fade_w):
-            a = int(255 * (x / fade_w))
-            left.fill((12, 15, 24, 255 - a), rect=pygame.Rect(x, 0, 1, th))
-            right.fill((12, 15, 24, 255 - a), rect=pygame.Rect(fade_w - 1 - x, 0, 1, th))
+            # Smooth easing for fade
+            t = x / fade_w
+            a = int(255 * (t * t))  # Quadratic ease-in
+            left.fill((8, 10, 16, 255 - a), rect=pygame.Rect(x, 0, 1, th))
+            right.fill((8, 10, 16, 255 - a), rect=pygame.Rect(fade_w - 1 - x, 0, 1, th))
         self._fade_left = left
         self._fade_right = right
     
@@ -975,105 +994,144 @@ class EnhancedSmoothDisplayManager:
                                   int(y - glow_scaled.get_height() // 2)))
     
     def _draw_header_enhanced(self):
+        """Draw a professional header with gradient accent line and subtle effects."""
         W = self.config.width
-        pad = 40
-        
-        title_color = self.colors["text_primary"]
-        
-        if self._glow_intensity.current_value > 0.5:
-            r, g, b = title_color
-            shift = int(20 * self._glow_intensity.current_value)
-            title_color = (min(255, r + shift), min(255, g + shift), b)
-        
+        H = self.config.height
+        pad = int(H * 0.035)
+
         if self._title_surf:
             title_x = (W - self._title_surf.get_width()) // 2
             title_y = pad
-            
-            # USE CACHED GLOW: No per-frame render
+
+            # Draw subtle glow behind title when active
             if not self.config.performance_mode and self.config.glow_enabled and self._title_glow_surf:
-                self._title_glow_surf.set_alpha(int(40 * self._glow_intensity.current_value))
-                for dx, dy in [(0, -2), (0, 2), (-2, 0), (2, 0)]:
-                    self.screen.blit(self._title_glow_surf, (title_x + dx, title_y + dy))
-            
+                glow_alpha = int(50 * self._glow_intensity.current_value)
+                if glow_alpha > 5:
+                    self._title_glow_surf.set_alpha(glow_alpha)
+                    for dx, dy in [(0, -3), (0, 3), (-3, 0), (3, 0), (-2, -2), (2, 2)]:
+                        self.screen.blit(self._title_glow_surf, (title_x + dx, title_y + dy))
+
             self.screen.blit(self._title_surf, (title_x, title_y))
-            
-            line_y = title_y + self._title_surf.get_height() + 8
-            line_width = self._title_surf.get_width()
-            
-            for i in range(3):
-                pygame.draw.line(self.screen, self.colors["accent"], 
-                                 (title_x, line_y + i),
-                                 (title_x + line_width, line_y + i), 3 - i)
-            
+
+            # Draw gradient accent line
+            line_y = title_y + self._title_surf.get_height() + 12
+            line_width = min(self._title_surf.get_width() + 100, W - 200)
+            line_x = (W - line_width) // 2
+            line_height = 3
+
+            # Create gradient line (fades at edges)
+            for i in range(line_width):
+                # Fade at edges
+                t = i / line_width
+                fade = min(1.0, min(t * 8, (1 - t) * 8))
+                alpha = int(255 * fade)
+                # Color shifts slightly across the line
+                r = int(self.colors["accent"][0] * (0.8 + 0.2 * t))
+                g = int(self.colors["accent"][1] * (0.9 + 0.1 * t))
+                b = self.colors["accent"][2]
+                color = (min(255, r), min(255, g), min(255, b))
+                pygame.draw.line(self.screen, color,
+                               (line_x + i, line_y),
+                               (line_x + i, line_y + line_height - 1))
+
+            # Add subtle glow under line
+            if not self.config.performance_mode:
+                glow_surf = pygame.Surface((line_width, 8), pygame.SRCALPHA)
+                for gy in range(8):
+                    alpha = int(30 * (1 - gy / 8))
+                    pygame.draw.line(glow_surf, (*self.colors["accent"], alpha),
+                                   (0, gy), (line_width, gy))
+                self.screen.blit(glow_surf, (line_x, line_y + line_height))
+
             if self._subtitle_surf:
                 dt_x = (W - self._subtitle_surf.get_width()) // 2
-                self.screen.blit(self._subtitle_surf, (dt_x, line_y + 12))
+                self.screen.blit(self._subtitle_surf, (dt_x, line_y + 20))
     
     def _draw_lane_cards_enhanced(self, lanes, high_scores):
+        """Draw lane cards with professional styling, borders, and effects."""
         W = self.config.width
         pad = self._pad
         card_w = W - pad * 2
         card_h = self._card_height
         gutter = self._gutter
-        
+
         start_y = self._header_h + pad
-        
+
         for i, lane in enumerate(lanes):
             y = start_y + i * (card_h + gutter)
-            
+
             scale = self._card_scales[i].current_value
             card_color = self._card_colors[i].update()
-            
+
             scaled_w = int(card_w * scale)
             scaled_h = int(card_h * scale)
             offset_x = (card_w - scaled_w) // 2
             offset_y = (card_h - scaled_h) // 2
-            
+
+            card_x = pad + offset_x
+            card_y = y + offset_y
+
+            # Draw shadow (if not in performance mode)
             if not self.config.performance_mode and "card" in self._shadow_cache:
                 shadow = self._shadow_cache["card"]
-                # OPTIMIZATION: Use .scale instead of .smoothscale for faster shadow rendering
-                shadow_scaled = pygame.transform.scale(shadow, 
-                                                      (scaled_w + 20, scaled_h + 20))
-                self.screen.blit(shadow_scaled, 
-                                 (pad + offset_x - 10, y + offset_y - 10))
-            
-            card_rect = pygame.Rect(pad + offset_x, y + offset_y, scaled_w, scaled_h)
+                shadow_scaled = pygame.transform.scale(shadow,
+                                                      (scaled_w + 24, scaled_h + 24))
+                self.screen.blit(shadow_scaled, (card_x - 12, card_y - 8))
+
+            card_rect = pygame.Rect(card_x, card_y, scaled_w, scaled_h)
+
+            # Draw card background
             pygame.draw.rect(self.screen, card_color, card_rect, border_radius=self._card_radius)
-            
+
+            # Get state for border color
+            running, paused, has_been_stopped, _ = lane.get_state_snapshot()
+
+            # Draw subtle border with state-based color
+            if running:
+                border_color = (*self.colors["state_running_clr"][:3],)
+                border_alpha = 180
+            elif paused:
+                border_color = (*self.colors["state_paused_clr"][:3],)
+                border_alpha = 180
+            elif has_been_stopped:
+                border_color = (*self.colors["state_stopped_clr"][:3],)
+                border_alpha = 180
+            else:
+                border_color = self.colors["card_border"]
+                border_alpha = 100
+
+            # Draw border
+            border_surf = pygame.Surface((scaled_w, scaled_h), pygame.SRCALPHA)
+            pygame.draw.rect(border_surf, (*border_color, border_alpha),
+                           pygame.Rect(0, 0, scaled_w, scaled_h),
+                           width=2, border_radius=self._card_radius)
+            self.screen.blit(border_surf, (card_x, card_y))
+
+            # Draw top accent line for active states
+            if running or paused or has_been_stopped:
+                accent_color = border_color
+                accent_width = scaled_w - self._card_radius * 2
+                accent_x = card_x + self._card_radius
+                pygame.draw.line(self.screen, accent_color,
+                               (accent_x, card_y + 1),
+                               (accent_x + accent_width, card_y + 1), 3)
+
+            # Glass effect overlay
             if not self.config.performance_mode and self.config.glass_effects and self._glass_overlay:
                 glass = pygame.transform.scale(self._glass_overlay, (scaled_w, scaled_h))
-                glass.set_alpha(20)
-                self.screen.blit(glass, (pad + offset_x, y + offset_y))
-            
+                glass.set_alpha(15)
+                self.screen.blit(glass, (card_x, card_y))
+
             self._draw_card_content(lane, i, card_rect, high_scores)
     
     def _draw_card_content(self, lane, lane_idx, card_rect, high_scores):
+        """Draw card content with professional timer display and best time panel."""
         x, y, w, h = card_rect.x, card_rect.y, card_rect.width, card_rect.height
-        
-        lane_text = f"LANE {lane_idx + 1}"
-        lane_text_color = self.colors["text_primary"]
-        lane_surf = self.fonts["lane"].render(lane_text, True, lane_text_color)
-        
-        lane_x = x + 50
-        lane_y = y + 35
-        
-        if not self.config.performance_mode:
-            shadow_color = (0, 0, 0)
-            outline_positions = [
-                (-3, -3), (-3, 0), (-3, 3),
-                (0, -3), (0, 3),
-                (3, -3), (3, 0), (3, 3),
-                (-2, -2), (-2, 2), (2, -2), (2, 2)
-            ]
-            for dx, dy in outline_positions:
-                shadow_surf = self.fonts["lane"].render(lane_text, True, shadow_color)
-                self.screen.blit(shadow_surf, (lane_x + dx, lane_y + dy))
-        
-        self.screen.blit(lane_surf, (lane_x, lane_y))
-        
-        chip_x = lane_x + lane_surf.get_width() + 30
-        
+
+        # Get lane state
         running, paused, has_been_stopped, elapsed = lane.get_state_snapshot()
+
+        # Determine state colors
         if running:
             status = "RUNNING"
             status_chip_color = self.colors["state_running_clr"]
@@ -1086,85 +1144,194 @@ class EnhancedSmoothDisplayManager:
         else:
             status = "READY"
             status_chip_color = self.colors["state_ready_clr"]
-        
+
+        # --- Lane Number ---
+        lane_text = f"LANE {lane_idx + 1}"
+        lane_surf = self.fonts["lane"].render(lane_text, True, self.colors["text_primary"])
+
+        lane_x = x + int(w * 0.03)
+        lane_y = y + int(h * 0.12)
+
+        # Text shadow for lane number
+        if not self.config.performance_mode:
+            shadow_surf = self.fonts["lane"].render(lane_text, True, (0, 0, 0))
+            for dx, dy in [(-2, -2), (-2, 2), (2, -2), (2, 2), (0, 3)]:
+                self.screen.blit(shadow_surf, (lane_x + dx, lane_y + dy))
+
+        self.screen.blit(lane_surf, (lane_x, lane_y))
+
+        # --- Status Chip ---
+        chip_x = lane_x + lane_surf.get_width() + int(w * 0.02)
+        chip_y = lane_y + (lane_surf.get_height() - 40) // 2
         chip_surf = self._create_enhanced_chip(status, status_chip_color, running)
-        chip_y = y + 38
         self.screen.blit(chip_surf, (chip_x, chip_y))
-        
+
+        # --- Timer Display with Background Panel ---
         time_text = lane.format_time(elapsed)
-        timer_color = status_chip_color
-        timer_surf = self.fonts["timer"].render(time_text, True, timer_color)
-        
-        timer_x = x + (w - timer_surf.get_width()) // 2
-        timer_y = y + (h - timer_surf.get_height()) // 2 + 10
-        
-        # REUSE TIMER SURFACE: No per-frame render for glow
+        timer_surf = self.fonts["timer"].render(time_text, True, status_chip_color)
+
+        timer_w = timer_surf.get_width()
+        timer_h = timer_surf.get_height()
+
+        # Timer panel dimensions
+        panel_padding_x = int(w * 0.04)
+        panel_padding_y = int(h * 0.08)
+        panel_w = timer_w + panel_padding_x * 2
+        panel_h = timer_h + panel_padding_y
+
+        panel_x = x + (w - panel_w) // 2
+        panel_y = y + int(h * 0.38)
+
+        # Draw timer background panel
+        panel_rect = pygame.Rect(panel_x, panel_y, panel_w, panel_h)
+        panel_surf = pygame.Surface((panel_w, panel_h), pygame.SRCALPHA)
+
+        # Panel background with subtle gradient
+        for py in range(panel_h):
+            t = py / panel_h
+            shade = int(16 + 6 * t)
+            pygame.draw.line(panel_surf, (shade, shade + 2, shade + 8, 220),
+                           (0, py), (panel_w, py))
+
+        # Panel border
+        border_color = status_chip_color if (running or paused or has_been_stopped) else self.colors["card_border"]
+        border_alpha = 120 if (running or paused or has_been_stopped) else 60
+        pygame.draw.rect(panel_surf, (*border_color, border_alpha),
+                        pygame.Rect(0, 0, panel_w, panel_h),
+                        width=2, border_radius=12)
+
+        self.screen.blit(panel_surf, (panel_x, panel_y))
+
+        # Timer text position
+        timer_x = panel_x + (panel_w - timer_w) // 2
+        timer_y = panel_y + (panel_h - timer_h) // 2
+
+        # Glow effect for running timer
         if running and not self.config.performance_mode and self.config.glow_enabled:
             glow_intensity = 0.5 + 0.5 * math.sin(self._pulse * 2)
             glow_surf = timer_surf.copy()
-            glow_surf.set_alpha(int(40 * glow_intensity))
-            for dx, dy in [(0, -2), (0, 2), (-2, 0), (2, 0)]:
+            glow_surf.set_alpha(int(50 * glow_intensity))
+            for dx, dy in [(0, -3), (0, 3), (-3, 0), (3, 0)]:
                 self.screen.blit(glow_surf, (timer_x + dx, timer_y + dy))
-        
+
         self.screen.blit(timer_surf, (timer_x, timer_y))
-        
+
+        # --- Best Time Display ---
         best = high_scores.get_best_score(lane_idx)
         if best is not None:
+            # Best time panel
             best_label = self.fonts["label"].render("BEST", True, self.colors["text_muted"])
-            best_time = self.fonts["lane"].render(f"{best:.3f}s", True, self.colors["accent"])
-            
-            right_x = x + w - 40 - max(best_label.get_width(), best_time.get_width())
-            self.screen.blit(best_label, (right_x, y + 30))
-            self.screen.blit(best_time, (right_x, y + 30 + best_label.get_height() + 4))
+            best_time_surf = self.fonts["chip"].render(f"{best:.3f}s", True, self.colors["gold"])
+
+            panel_content_w = max(best_label.get_width(), best_time_surf.get_width()) + 24
+            panel_content_h = best_label.get_height() + best_time_surf.get_height() + 16
+
+            best_panel_x = x + w - panel_content_w - int(w * 0.025)
+            best_panel_y = y + int(h * 0.15)
+
+            # Draw best time background
+            best_panel_surf = pygame.Surface((panel_content_w, panel_content_h), pygame.SRCALPHA)
+            pygame.draw.rect(best_panel_surf, (20, 24, 36, 200),
+                           pygame.Rect(0, 0, panel_content_w, panel_content_h),
+                           border_radius=8)
+            pygame.draw.rect(best_panel_surf, (*self.colors["gold"], 60),
+                           pygame.Rect(0, 0, panel_content_w, panel_content_h),
+                           width=1, border_radius=8)
+            self.screen.blit(best_panel_surf, (best_panel_x, best_panel_y))
+
+            # Draw best label and time
+            label_x = best_panel_x + (panel_content_w - best_label.get_width()) // 2
+            time_x = best_panel_x + (panel_content_w - best_time_surf.get_width()) // 2
+
+            self.screen.blit(best_label, (label_x, best_panel_y + 8))
+            self.screen.blit(best_time_surf, (time_x, best_panel_y + 8 + best_label.get_height() + 4))
     
-    def _create_enhanced_chip(self, text: str, color: Tuple[int, int, int], 
+    def _create_enhanced_chip(self, text: str, color: Tuple[int, int, int],
                              is_active: bool = False) -> pygame.Surface:
+        """Create a refined status chip with gradient and glow effects."""
         if not is_active:
             key = (text, color, False)
             if key in self._chip_cache:
                 return self._chip_cache[key]
-        
-        padding = 20
+
+        padding_x = 24
+        padding_y = 12
         text_surf = self.fonts["chip"].render(text, True, (255, 255, 255))
-        w = text_surf.get_width() + padding * 2
-        h = text_surf.get_height() + padding
-        
+        w = text_surf.get_width() + padding_x * 2
+        h = text_surf.get_height() + padding_y
+
         chip = pygame.Surface((w, h), pygame.SRCALPHA)
-        
+        radius = h // 2
+
         if is_active and self.config.glow_enabled:
+            # Animated gradient for active state
+            intensity = 0.85 + 0.15 * math.sin(self._pulse * 2)
             for i in range(h):
                 t = i / h
-                intensity = 0.8 + 0.2 * math.sin(self._pulse * 2)
-                r = int(color[0] * (1 - t * 0.3) * intensity)
-                g = int(color[1] * (1 - t * 0.3) * intensity)
-                b = int(color[2] * (1 - t * 0.3) * intensity)
-                pygame.draw.rect(chip, (r, g, b, 255), (0, i, w, 1))
+                # Vertical gradient with subtle darkening
+                r = int(color[0] * (1.0 - t * 0.25) * intensity)
+                g = int(color[1] * (1.0 - t * 0.25) * intensity)
+                b = int(color[2] * (1.0 - t * 0.25) * intensity)
+                pygame.draw.line(chip, (min(255, r), min(255, g), min(255, b), 255),
+                               (0, i), (w, i))
+            # Mask to rounded rect
+            mask = pygame.Surface((w, h), pygame.SRCALPHA)
+            pygame.draw.rect(mask, (255, 255, 255, 255), pygame.Rect(0, 0, w, h), border_radius=radius)
+            chip.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
         else:
-            pygame.draw.rect(chip, color, chip.get_rect(), border_radius=h // 2)
-        
-        chip.blit(text_surf, (padding, padding // 2))
+            # Static chip with subtle gradient
+            for i in range(h):
+                t = i / h
+                r = int(color[0] * (1.0 - t * 0.2))
+                g = int(color[1] * (1.0 - t * 0.2))
+                b = int(color[2] * (1.0 - t * 0.2))
+                pygame.draw.line(chip, (r, g, b, 255), (0, i), (w, i))
+            # Mask to rounded rect
+            mask = pygame.Surface((w, h), pygame.SRCALPHA)
+            pygame.draw.rect(mask, (255, 255, 255, 255), pygame.Rect(0, 0, w, h), border_radius=radius)
+            chip.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+
+        # Add subtle highlight at top
+        highlight = pygame.Surface((w, h // 3), pygame.SRCALPHA)
+        for i in range(h // 3):
+            alpha = int(40 * (1 - i / (h // 3)))
+            pygame.draw.line(highlight, (255, 255, 255, alpha), (0, i), (w, i))
+        chip.blit(highlight, (0, 0))
+
+        # Add text with subtle shadow
+        text_x = padding_x
+        text_y = padding_y // 2
+        shadow = self.fonts["chip"].render(text, True, (0, 0, 0, 80))
+        chip.blit(shadow, (text_x + 1, text_y + 1))
+        chip.blit(text_surf, (text_x, text_y))
+
         chip = chip.convert_alpha()
-        
+
         if not is_active:
             key = (text, color, False)
             self._chip_cache[key] = chip
-        
+
         return chip
     
     def _draw_ticker_enhanced(self, high_scores):
         """
-        BULLETPROOF TICKER with FULL COVERAGE:
-        - All surfaces cached (zero allocations)
-        - Text rendered WITHOUT antialiasing (no crawling)
-        - Multi-tiled surface covers entire bar (no gaps)
-        - Quantized whole-pixel scrolling (no shimmer)
-        - V-Sync Locked pacing (perfect step rate)
+        Professional ticker with visual polish:
+        - Gradient background with accent line
+        - Cached surfaces for performance
+        - Smooth quantized scrolling
         """
         W, H = self.config.width, self.config.height
         r = self._ticker_rect
-        
-        # Blit cached background
+
+        # Draw ticker background
         self.screen.blit(self._ticker_bg, r.topleft)
+
+        # Draw accent line at top of ticker
+        accent_y = r.y
+        for i in range(3):
+            alpha = 255 - i * 60
+            color = (*self.colors["accent_dim"], alpha) if i > 0 else self.colors["accent"]
+            pygame.draw.line(self.screen, color[:3], (0, accent_y + i), (W, accent_y + i))
         
         # Regenerate text + tile only when scores change
         scores_data = tuple(
